@@ -7,6 +7,7 @@
 
 var fs = require('fs');
 var express = require('express');
+var moment = require('moment');
 var app = express();
 
 if (!process.env.DISABLE_XORIGIN) {
@@ -38,6 +39,71 @@ app.route('/')
 		  res.sendFile(process.cwd() + '/views/index.html');
     })
 
+app.route('/:timestring').get(function(req, res) {
+  var str = req.params.timestring;
+  var months = ['January', 'February', 'March', 'April', 'May', 'June', 
+  'July', 'August', 'September', 'October', 'November', 'December'];
+  var format = 'MMMM D, YYYY';
+
+  function isUnix(str) {
+    return !isNaN(str);
+  }
+
+  function monthDateYear(str) {
+    var arr = str.split(' ');
+    if (arr.length != 3) {
+      return [];
+    }
+    var mth = arr[0];
+    var date = arr[1].slice(0, arr[1].length - 1);
+    var yr = arr[2];
+    return [mth, date, yr];
+  }
+
+  function isNL(str) {
+    var arr = monthDateYear(str)
+    if (arr.length < 0) {
+      return false;
+    }
+    var mth = arr[0];
+    var date = arr[1]
+    var yr = arr[2];
+
+    var validMth = !(months.indexOf(mth) == -1);
+    var validDate = (!isNaN(date) && parseInt(date) > 0 && parseInt(date) < 32);
+    var validYr = !(isNaN(yr));
+
+    var isValid = (validMth && validDate && validYr);
+    return isValid;
+  }
+
+  function unixToNL(str) {
+    return moment(parseInt(str)*1000).format(format);
+  }
+
+  function nlToUnix(str) {
+    var origin = moment('January 1, 1970', format);
+    return moment(str, format).diff(origin)/1000;
+  }
+
+  var response = {
+    "unix": null,
+    "natural": null
+  };
+
+  if (isUnix(str)) {
+    response["unix"] = parseInt(str);
+    response["natural"] = unixToNL(str);
+  }
+
+  if (isNL(str)) {
+    response["unix"] = nlToUnix(str);
+    response["natural"] = str;
+  }
+
+  res.send(response);
+})
+
 // Respond not found to all the wrong routes
 app.use(function(req, res, next){
   res.status(404);
@@ -53,7 +119,7 @@ app.use(function(err, req, res, next) {
   }  
 })
 
-app.listen(process.env.PORT, function () {
+app.listen(3000, function () {
   console.log('Node.js listening ...');
 });
 
